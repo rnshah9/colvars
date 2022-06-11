@@ -1,0 +1,4 @@
+project: colvars
+target: abf-integrate
+cmds:
+  - cmd: /repo/colvartools/abf_integrate @@
