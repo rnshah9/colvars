@@ -13,5 +13,5 @@ RUN ldd /repo/colvartools/abf_integrate | tr -s '[:blank:]' '\n' | grep '^/' | x
 FROM ubuntu:22.04 as package
 
 COPY --from=builder /deps /deps
-COPY --from=builder /repo/colvartools/abf_integrate /repocolvartools/abf_integrate
+COPY --from=builder /repo/colvartools/abf_integrate /repo/colvartools/abf_integrate
 ENV LD_LIBRARY_PATH=/deps
