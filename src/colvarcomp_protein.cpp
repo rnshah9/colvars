@@ -333,10 +333,11 @@ colvar::dihedPC::dihedPC(std::string const &conf)
       return;
     }
 
-    std::ifstream vecFile;
-    vecFile.open(vecFileName.c_str());
-    if (!vecFile.good()) {
-      cvm::error("Error opening dihedral PCA vector file " + vecFileName + " for reading");
+    std::istream &vecFile =
+      cvm::main()->proxy->input_stream(vecFileName,
+                                       "dihedral PCA vector file");
+    if (vecFile.bad()) {
+      return;
     }
 
     // TODO: adapt to different formats by setting this flag
@@ -375,7 +376,7 @@ colvar::dihedPC::dihedPC(std::string const &conf)
       }
     }
  */
-    vecFile.close();
+    cvm::main()->proxy->close_input_stream(vecFileName);
 
   } else {
     get_keyval(conf, "vector", coeffs, coeffs);

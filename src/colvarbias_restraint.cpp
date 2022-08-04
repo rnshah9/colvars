@@ -7,6 +7,10 @@
 // If you wish to distribute your changes, please submit them to the
 // Colvars repository at GitHub.
 
+#include <fstream>
+#include <iostream>
+#include <iomanip>
+
 #include "colvarmodule.h"
 #include "colvarproxy.h"
 #include "colvarvalue.h"
@@ -1302,6 +1306,8 @@ colvarbias_restraint_histogram::colvarbias_restraint_histogram(char const *key)
 
 int colvarbias_restraint_histogram::init(std::string const &conf)
 {
+  int error_code = COLVARS_OK;
+
   colvarbias::init(conf);
   enable(f_cvb_apply_force);
 
@@ -1312,18 +1318,19 @@ int colvarbias_restraint_histogram::init(std::string const &conf)
   get_keyval(conf, "width", width, width);
 
   if (width <= 0.0) {
-    cvm::error("Error: \"width\" must be positive.\n", COLVARS_INPUT_ERROR);
+    error_code |= cvm::error("Error: \"width\" must be positive.\n",
+                             COLVARS_INPUT_ERROR);
   }
 
   get_keyval(conf, "gaussianWidth", gaussian_width, 2.0 * width, colvarparse::parse_silent);
   get_keyval(conf, "gaussianSigma", gaussian_width, 2.0 * width);
 
   if (lower_boundary >= upper_boundary) {
-    cvm::error("Error: the upper boundary, "+
-               cvm::to_str(upper_boundary)+
-               ", is not higher than the lower boundary, "+
-               cvm::to_str(lower_boundary)+".\n",
-               COLVARS_INPUT_ERROR);
+    error_code |= cvm::error("Error: the upper boundary, "+
+                             cvm::to_str(upper_boundary)+
+                             ", is not higher than the lower boundary, "+
+                             cvm::to_str(lower_boundary)+".\n",
+                             COLVARS_INPUT_ERROR);
   }
 
   cvm::real const nbins = (upper_boundary - lower_boundary) / width;
@@ -1347,22 +1354,30 @@ int colvarbias_restraint_histogram::init(std::string const &conf)
   get_keyval(conf, "refHistogramFile", ref_p_file, std::string(""));
   if (ref_p_file.size()) {
     if (inline_ref_p) {
-      cvm::error("Error: cannot specify both refHistogram and refHistogramFile at the same time.\n",
-                 COLVARS_INPUT_ERROR);
+      error_code |= cvm::error("Error: cannot specify both refHistogram and refHistogramFile at the same time.\n",
+                               COLVARS_INPUT_ERROR);
     } else {
-      std::ifstream is(ref_p_file.c_str());
+
+      std::istream &is =
+        cvm::main()->proxy->input_stream(ref_p_file,
+                                         "reference histogram file");
+
       std::string data_s = "";
       std::string line;
       while (getline_nocomments(is, line)) {
         data_s.append(line+"\n");
       }
       if (data_s.size() == 0) {
-        cvm::error("Error: file \""+ref_p_file+"\" empty or unreadable.\n", COLVARS_FILE_ERROR);
+        error_code |= cvm::error("Error: file \""+ref_p_file+
+                                 "\" empty or unreadable.\n",
+                                 COLVARS_FILE_ERROR);
       }
-      is.close();
+      error_code |= cvm::main()->proxy->close_input_stream(ref_p_file);
+
       cvm::vector1d<cvm::real> data;
       if (data.from_simple_string(data_s) != 0) {
-        cvm::error("Error: could not read histogram from file \""+ref_p_file+"\".\n");
+        error_code |= cvm::error("Error: could not read histogram from file \""+
+                                 ref_p_file+"\".\n");
       }
       if (data.size() == 2*ref_p.size()) {
         // file contains both x and p(x)
@@ -1373,11 +1388,13 @@ int colvarbias_restraint_histogram::init(std::string const &conf)
       } else if (data.size() == ref_p.size()) {
         ref_p = data;
       } else {
-        cvm::error("Error: file \""+ref_p_file+"\" contains a histogram of different length.\n",
-                   COLVARS_INPUT_ERROR);
+        error_code |= cvm::error("Error: file \""+ref_p_file+
+                                 "\" contains a histogram of different length.\n",
+                                 COLVARS_INPUT_ERROR);
       }
     }
   }
+
   cvm::real const ref_integral = ref_p.sum() * width;
   if (cvm::fabs(ref_integral - 1.0) > 1.0e-03) {
     cvm::log("Reference distribution not normalized, normalizing to unity.\n");

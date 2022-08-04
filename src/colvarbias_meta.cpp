@@ -268,6 +268,7 @@ int colvarbias_meta::init_well_tempered_params(std::string const &conf)
 
 int colvarbias_meta::init_ebmeta_params(std::string const &conf)
 {
+  int error_code = COLVARS_OK;
   // for ebmeta
   target_dist = NULL;
   get_keyval(conf, "ebMeta", ebmeta, false);
@@ -280,11 +281,11 @@ int colvarbias_meta::init_ebmeta_params(std::string const &conf)
                  "accordingly.\n", COLVARS_INPUT_ERROR);
     }
     target_dist = new colvar_grid_scalar();
-    target_dist->init_from_colvars(colvars);
+    error_code |= target_dist->init_from_colvars(colvars);
     std::string target_dist_file;
     get_keyval(conf, "targetDistFile", target_dist_file);
-    std::ifstream targetdiststream(target_dist_file.c_str());
-    target_dist->read_multicol(targetdiststream);
+    error_code |= target_dist->read_multicol(target_dist_file,
+                                             "ebMeta target histogram");
     cvm::real min_val = target_dist->minimum_value();
     cvm::real max_val = target_dist->maximum_value();
     if(min_val<0){
@@ -1413,6 +1414,10 @@ std::istream & colvarbias_meta::read_state_data(std::istream& is)
   size_t const old_hills_size = hills.size();
   hill_iter old_hills_end = hills.end();
   hill_iter old_hills_off_grid_end = hills_off_grid.end();
+  if (cvm::debug()) {
+    cvm::log("Before reading hills from the state file, there are "+
+             cvm::to_str(hills.size())+" hills in memory.\n");
+  }
 
   // Read any hills following the grid data (if any)
   while (read_hill(is)) {
@@ -1431,6 +1436,10 @@ std::istream & colvarbias_meta::read_state_data(std::istream& is)
   if (existing_hills) {
     hills.erase(hills.begin(), old_hills_end);
     hills_off_grid.erase(hills_off_grid.begin(), old_hills_off_grid_end);
+    if (cvm::debug()) {
+      cvm::log("After pruning the old hills, there are now "+
+               cvm::to_str(hills.size())+" hills in memory.\n");
+    }
   }
 
   if (rebin_grids) {
